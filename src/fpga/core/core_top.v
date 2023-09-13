@@ -327,17 +327,17 @@ always @(*) begin
     endcase
 end
 
-
 //
 // host/target command handler
 //
     wire            reset_n;                // driven by host commands, can be used as core-wide reset
+    wire            init_done;
     wire    [31:0]  cmd_bridge_rd_data;
     
 // bridge host commands
 // synchronous to clk_74a
-    wire            status_boot_done = pll_core_locked_s; 
-    wire            status_setup_done = pll_core_locked_s; // rising edge triggers a target command
+    wire            status_boot_done = init_done; 
+    wire            status_setup_done = init_done; // rising edge triggers a target command
     wire            status_running = reset_n; // we are running as soon as reset_n goes high
 
     wire            dataslot_requestread;
@@ -495,181 +495,81 @@ core_bridge_cmd icb (
 ////////////////////////////////////////////////////////////////////////////////////////
 
 
+amaranth_core ac (
 
-// video generation
-// ~12,288,000 hz pixel clock
-//
-// we want our video mode of 320x240 @ 60hz, this results in 204800 clocks per frame
-// we need to add hblank and vblank times to this, so there will be a nondisplay area. 
-// it can be thought of as a border around the visible area.
-// to make numbers simple, we can have 400 total clocks per line, and 320 visible.
-// dividing 204800 by 400 results in 512 total lines per frame, and 240 visible.
-// this pixel clock is fairly high for the relatively low resolution, but that's fine.
-// PLL output has a minimum output frequency anyway.
+// input   wire            clk,
+// input   wire            rst,
+// output  wire            init_done,
 
+    .clk            ( clk_74a ),
+    .rst            ( ~reset_n ),
+    .init_done      ( init_done ),
 
-assign video_rgb_clock = clk_core_12288;
-assign video_rgb_clock_90 = clk_core_12288_90deg;
-assign video_rgb = vidout_rgb;
-assign video_de = vidout_de;
-assign video_skip = vidout_skip;
-assign video_vs = vidout_vs;
-assign video_hs = vidout_hs;
+// output  wire            user1,
+// input   wire            user2,
 
-    localparam  VID_V_BPORCH = 'd10;
-    localparam  VID_V_ACTIVE = 'd240;
-    localparam  VID_V_TOTAL = 'd512;
-    localparam  VID_H_BPORCH = 'd10;
-    localparam  VID_H_ACTIVE = 'd320;
-    localparam  VID_H_TOTAL = 'd400;
+    .user1          ( user1 ),
+    .user2          ( user2 ),
 
-    reg [15:0]  frame_count;
-    
-    reg [9:0]   x_count;
-    reg [9:0]   y_count;
-    
-    wire [9:0]  visible_x = x_count - VID_H_BPORCH;
-    wire [9:0]  visible_y = y_count - VID_V_BPORCH;
+// output  wire            dbg_tx,
+// input   wire            dbg_rx,
 
-    reg [23:0]  vidout_rgb;
-    reg         vidout_de, vidout_de_1;
-    reg         vidout_skip;
-    reg         vidout_vs;
-    reg         vidout_hs, vidout_hs_1;
-    
-    reg [9:0]   square_x = 'd135;
-    reg [9:0]   square_y = 'd95;
+    .dbg_tx         ( dbg_tx ),
+    .dbg_rx         ( dbg_rx ),
 
-always @(posedge clk_core_12288 or negedge reset_n) begin
+// output  wire            video_rgb_clk,
+// output  wire            video_rgb_clk90,
+// output  wire    [23:0]  video_rgb,
+// output  wire            video_de,
+// output  wire            video_skip,
+// output  wire            video_vs,
+// output  wire            video_hs,
 
-    if(~reset_n) begin
-    
-        x_count <= 0;
-        y_count <= 0;
-        
-    end else begin
-        vidout_de <= 0;
-        vidout_skip <= 0;
-        vidout_vs <= 0;
-        vidout_hs <= 0;
-        
-        vidout_hs_1 <= vidout_hs;
-        vidout_de_1 <= vidout_de;
-        
-        // x and y counters
-        x_count <= x_count + 1'b1;
-        if(x_count == VID_H_TOTAL-1) begin
-            x_count <= 0;
-            
-            y_count <= y_count + 1'b1;
-            if(y_count == VID_V_TOTAL-1) begin
-                y_count <= 0;
-            end
-        end
-        
-        // generate sync 
-        if(x_count == 0 && y_count == 0) begin
-            // sync signal in back porch
-            // new frame
-            vidout_vs <= 1;
-            frame_count <= frame_count + 1'b1;
-        end
-        
-        // we want HS to occur a bit after VS, not on the same cycle
-        if(x_count == 3) begin
-            // sync signal in back porch
-            // new line
-            vidout_hs <= 1;
-        end
+    .video_rgb_clk      ( video_rgb_clock ),
+    .video_rgb_clk90    ( video_rgb_clock_90 ),
+    .video_rgb          ( video_rgb ),
+    .video_de           ( video_de ),
+    .video_skip         ( video_skip ),
+    .video_vs           ( video_vs ),
+    .video_hs           ( video_hs ),
 
-        // inactive screen areas are black
-        vidout_rgb <= 24'h0;
-        // generate active video
-        if(x_count >= VID_H_BPORCH && x_count < VID_H_ACTIVE+VID_H_BPORCH) begin
+// output  wire            audio_clk,
+// output  wire            audio_wsel,
+// input   wire            audio_adc,
+// output  wire            audio_dac,
 
-            if(y_count >= VID_V_BPORCH && y_count < VID_V_ACTIVE+VID_V_BPORCH) begin
-                // data enable. this is the active region of the line
-                vidout_de <= 1;
-                
-                vidout_rgb[23:16] <= 8'd60;
-                vidout_rgb[15:8]  <= 8'd60;
-                vidout_rgb[7:0]   <= 8'd60;
-                
-            end 
-        end
-    end
-end
+    .audio_clk          ( audio_mclk ),
+    .audio_sync         ( audio_lrck ),
+    .audio_adc          ( audio_adc ),
+    .audio_dac          ( audio_dac ),
 
+// input   wire    [31:0]  cont1_key,
+// input   wire    [31:0]  cont2_key,
+// input   wire    [31:0]  cont3_key,
+// input   wire    [31:0]  cont4_key,
+// input   wire    [31:0]  cont1_joy,
+// input   wire    [31:0]  cont2_joy,
+// input   wire    [31:0]  cont3_joy,
+// input   wire    [31:0]  cont4_joy,
+// input   wire    [15:0]  cont1_trig,
+// input   wire    [15:0]  cont2_trig,
+// input   wire    [15:0]  cont3_trig,
+// input   wire    [15:0]  cont4_trig,
 
+    .cont1_key          ( cont1_key ),
+    .cont2_key          ( cont2_key ),
+    .cont3_key          ( cont3_key ),
+    .cont4_key          ( cont4_key ),
+    .cont1_joy          ( cont1_joy ),
+    .cont2_joy          ( cont2_joy ),
+    .cont3_joy          ( cont3_joy ),
+    .cont4_joy          ( cont4_joy ),
+    .cont1_trig         ( cont1_trig ),
+    .cont2_trig         ( cont2_trig ),
+    .cont3_trig         ( cont3_trig ),
+    .cont4_trig         ( cont4_trig )
 
-
-//
-// audio i2s silence generator
-// see other examples for actual audio generation
-//
-
-assign audio_mclk = audgen_mclk;
-assign audio_dac = audgen_dac;
-assign audio_lrck = audgen_lrck;
-
-// generate MCLK = 12.288mhz with fractional accumulator
-    reg         [21:0]  audgen_accum;
-    reg                 audgen_mclk;
-    parameter   [20:0]  CYCLE_48KHZ = 21'd122880 * 2;
-always @(posedge clk_74a) begin
-    audgen_accum <= audgen_accum + CYCLE_48KHZ;
-    if(audgen_accum >= 21'd742500) begin
-        audgen_mclk <= ~audgen_mclk;
-        audgen_accum <= audgen_accum - 21'd742500 + CYCLE_48KHZ;
-    end
-end
-
-// generate SCLK = 3.072mhz by dividing MCLK by 4
-    reg [1:0]   aud_mclk_divider;
-    wire        audgen_sclk = aud_mclk_divider[1] /* synthesis keep*/;
-    reg         audgen_lrck_1;
-always @(posedge audgen_mclk) begin
-    aud_mclk_divider <= aud_mclk_divider + 1'b1;
-end
-
-// shift out audio data as I2S 
-// 32 total bits per channel, but only 16 active bits at the start and then 16 dummy bits
-//
-    reg     [4:0]   audgen_lrck_cnt;    
-    reg             audgen_lrck;
-    reg             audgen_dac;
-always @(negedge audgen_sclk) begin
-    audgen_dac <= 1'b0;
-    // 48khz * 64
-    audgen_lrck_cnt <= audgen_lrck_cnt + 1'b1;
-    if(audgen_lrck_cnt == 31) begin
-        // switch channels
-        audgen_lrck <= ~audgen_lrck;
-        
-    end 
-end
-
-
-///////////////////////////////////////////////
-
-
-    wire    clk_core_12288;
-    wire    clk_core_12288_90deg;
-    
-    wire    pll_core_locked;
-    wire    pll_core_locked_s;
-synch_3 s01(pll_core_locked, pll_core_locked_s, clk_74a);
-
-mf_pllbase mp1 (
-    .refclk         ( clk_74a ),
-    .rst            ( 0 ),
-    
-    .outclk_0       ( clk_core_12288 ),
-    .outclk_1       ( clk_core_12288_90deg ),
-    
-    .locked         ( pll_core_locked )
 );
 
 
-    
 endmodule

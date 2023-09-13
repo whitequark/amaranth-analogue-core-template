@@ -1,0 +1,16 @@
+[project]
+requires-python = "~=3.8"
+dependencies = [
+    "amaranth[builtin-yosys] @ git+https://github.com/amaranth-lang/amaranth.git",
+]
+
+[tool.pdm.dev-dependencies]
+simulation = [
+    "pypng"
+]
+
+[tool.pdm.scripts]
+_.env_file = ".env.toolchain"
+simulate = {call = "embedded_amaranth_core.toplevel:simulate"}
+capture_frame = {call = "embedded_amaranth_core.toplevel:capture_frame"}
+generate = {call = "embedded_amaranth_core.toplevel:generate"}
