@@ -1,0 +1,59 @@
+# If your core does not implement any existing platform, you can remove all platform metadata.
+# This appears to be uncommon in the community, so it is included in the example.
+[[metadata.platform]]
+# This field is not user visible; it determines the name of the platform JSON file. If you wish to
+# share a platform with another core, this field must be identical between them.
+id = "ex_platform"
+
+# These fields are visible to the end user in the Pocket's interface.
+category = "Example Cores" # Optional.
+name = "Example Platform" # Required.
+manufacturer = "Example Manufacturer" # Required.
+year = 2023 # Required.
+
+[metadata.core]
+# These two fields influence the directory structure. The core will be named <author>.<name>.
+author = "Amaranth Developer"
+name = "Example Amaranth Core"
+
+# The rest of the fields only appear in the Pocket's user interface.
+description = "Amaranth APF core template. Displays magenta test screen."
+description_long = """
+Amaranth Example Core - Core Template
+
+This is a template for a core containing all of the support code necessary to design, build, and deploy Amaranth designs on Analogue Pocket.
+"""
+url = "https://github.com/whitequark/analogue-core-template"
+version = "1.0.0"
+# The release date is filled in from the date of the build, but can be specified explicitly.
+# release_date = "2023-09-30"
+
+[core]
+sleep_supported = false # Defaults to `false`.
+
+# The [audio] section is currently empty, as Analogue defines no audio metadata.
+[audio]
+
+# Multiple video modes can be defined; the core switches between them by outputting special codes
+# during the blanking intervals.
+[[video.mode]]
+width  = 320
+height = 240
+rotation = 0 # Defaults to 0. Values: 0, 90, 180, 270.
+mirror_horizontal = false # Defaults to `false`.
+mirror_vertical = false # Defaults to `false`.
+# These settings allow creating video modes with non-square pixels. The default is square.
+pixel_width  = 1
+pixel_height = 1
+# This setting exists to aid the FPGA core in generating the correct video signals. It is not
+# interpreted by the `amaranth_analogue` library, and can contain any data.
+configuration = {}
+
+# The [input] section is currently empty, as controller configuration is not implemented yet.
+[input]
+
+# The [interact] section is currently empty, as UI configuration is not implemented yet.
+[interact]
+
+# The [data] section is currently empty, as UI configuration is not implemented yet.
+[data]

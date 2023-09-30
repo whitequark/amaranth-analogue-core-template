@@ -1,0 +1,40 @@
+# This file configures the Python aspects of the project: the Python dependencies, the simulation
+# and build commands, and so on. The Analogue aspects of the project are configured in a different
+# file, `/analogue.toml`.
+
+[project]
+name = "amaranth-analogue-example" # Should match the `src/amaranth_analogue_example` folder name.
+version = "0" # Does not matter; the real version is in `analogue.toml`.
+
+requires-python = "~=3.8"
+dependencies = [
+    # Required by `src/amaranth_analogue`:
+    "tomli~=2.0.1",
+    "jsonschema~=4.17.3",
+    "amaranth[builtin-yosys] @ git+https://github.com/amaranth-lang/amaranth.git",
+    # Required by `src/amaranth_analogue_example`:
+]
+
+[tool.pdm.dev-dependencies]
+simulation = [
+    "pypng"
+]
+
+[tool.pdm.scripts]
+# This file configures the environment variables required to make the build process reproducible.
+# It instructs Amaranth to always use Yosys installed as a dependency above (via [builtin-yosys]).
+# Running `pdm run ...` will use the build tools specified in the `pdm.lock` file.
+_.env_file = ".env.toolchain"
+
+# These commands simulate the core netlist for a single frame, and capture the output in a variety
+# of formats. As you add capabilities to your core, it may make sense to add new ones.
+simulate_frame = {call = "amaranth_analogue_example.toplevel:simulate_frame"}
+capture_frame = {call = "amaranth_analogue_example.toplevel:capture_frame"}
+
+# This command runs the complete build process that converts source code and metadata into
+# a finished Analogue core, ready to be installed on your Pocket. The built artifacts are placed
+# in the /out directory.
+build = {call = "amaranth_analogue_example.toplevel:build"}
+
+# This command copies the built artifacts onto your Pocket's SD card.
+deploy = {call = "amaranth_analogue_example.toplevel:deploy"}
